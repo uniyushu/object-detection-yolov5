@@ -56,19 +56,25 @@ from utils.metrics import fitness
 from utils.plots import plot_evolve, plot_labels
 from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, torch_distributed_zero_first
 
+from third_party.co_lib.co_lib import Co_Lib as CL
+from utils.torch_utils import print_sparsity
+
+# from xgen_tools import *
+from third_party.toolchain.model_train.xgen_tools.model_train_tools import *
+
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 
-def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
+def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     if opt.quant:
         from models.yolo_quant import Model
     else:
         from models.yolo import Model
 
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
-        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
+        Path(opt.save_dir), opt.common_train_epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     callbacks.run('on_pretrain_routine_start')
 
@@ -97,7 +103,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         if loggers.wandb:
             data_dict = loggers.wandb.data_dict
             if resume:
-                weights, epochs, hyp, batch_size = opt.weights, opt.epochs, opt.hyp, opt.batch_size
+                weights, epochs, hyp, batch_size = opt.weights, opt.common_train_epochs, opt.hyp, opt.batch_size
 
         # Register actions
         for k in methods(loggers):
@@ -182,7 +188,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if opt.cos_lr:
         lf = one_cycle(1, hyp['lrf'], epochs)  # cosine 1->hyp['lrf']
     else:
-        lf = lambda x: (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf']  # linear
+        lf = lambda x: (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf'] if epochs !=0 else 1e-3 # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
@@ -276,6 +282,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if cuda and RANK != -1:
         model = DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK)
 
+    CL.init(args=args_ai, model=model, optimizer=optimizer, data_loader=train_loader)
+    # CPL.init(args, model, optimizer)
+    print_sparsity(model, show_sparse_only=True)
+
     # Model attributes
     nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps)
     hyp['box'] *= 3 / nl  # scale to layers
@@ -305,6 +315,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 f'Starting training for {epochs} epochs...')
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
+
+        # Cocopie pruning 2: add prune_update ***************************************************************************
+        CL.before_each_train_epoch(epoch=epoch)
+        # CPL.update_var(epoch)
+        # Cocopie end
+
         model.train()
 
         # Update image weights (optional, single-GPU only)
@@ -358,6 +374,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 if opt.quad:
                     loss *= 4.
 
+                # Cocopie pruning 4: add prune_update_loss **********************************************************
+                loss = CL.update_loss(loss)
+                # loss = CPL.update_loss(loss)
+                # Cocopie end
+
             # Backward
             scaler.scale(loss).backward()
 
@@ -384,6 +405,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
+
+        # Cocopie pruning 3: add prune_update_learning_rate *************************************************************
+        CL.after_scheduler_step(epoch=epoch)
+        # CPL.update_lr(optimizer, epoch, args)
+        # Cocopie end
 
         if RANK in (-1, 0):
             # mAP
@@ -430,6 +456,23 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
+            results, maps, _ = val.run(data_dict,
+                                       batch_size=batch_size // WORLD_SIZE * 2,
+                                       imgsz=imgsz,
+                                       model=ema.ema,
+                                       single_cls=single_cls,
+                                       dataloader=val_loader,
+                                       save_dir=save_dir,
+                                       plots=False,
+                                       callbacks=callbacks,
+                                       compute_loss=compute_loss)
+            fi = fitness(np.array(results).reshape(1, -1))
+            if hasattr(ema, 'ema') is not None:
+                save_model = eme.ema.module if hasattr(eme.ema, 'module') else ema.ema
+            else:
+                save_model = model.module if hasattr(model, 'module') else model
+            xgen_record(args_ai, save_model, float(fi), epoch=epoch)
+
             # Stop Single-GPU
             if RANK == -1 and stopper(epoch=epoch, fitness=fi):
                 break
@@ -446,34 +489,24 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
-        def _save_model(model):
-            with torch.no_grad():
-                torch.save(model.state_dict(),
-                           os.path.join(weights + "_quant.pth"))
 
-        def _export_onnx(model, shape=(1, 3, 320, 320)):
-            device = next(model.parameters()).device
-            model.eval().to('cpu')
+    results, maps, _ = val.run(data_dict,
+                               batch_size=batch_size // WORLD_SIZE * 2,
+                               imgsz=imgsz,
+                               model=ema.ema,
+                               single_cls=single_cls,
+                               dataloader=val_loader,
+                               save_dir=save_dir,
+                               plots=False,
+                               callbacks=callbacks,
+                               compute_loss=compute_loss)
+    fi = fitness(np.array(results).reshape(1, -1))
+    if hasattr(ema, 'ema') is not None:
+        save_model = ema.ema.module if hasattr(ema.ema, 'module') else ema.ema
+    else:
+        save_model = model.module if hasattr(model, 'module') else model
 
-            # Input to the model
-            x = torch.randn(shape)
-            onnx_save_path = os.path.join(weights + '_quant.onnx')
-
-            # Export the model
-            torch.onnx.export(model,  # model being run
-                              x,  # model input (or a tuple for multiple inputs)
-                              onnx_save_path,  # where to save the model (can be a file or file-like object)
-                              input_names=['input'],  # the model's input names
-                              output_names=['output'],  # the model's output names
-                              opset_version=12
-                              )
-            model.train().to(device)
-
-        model_dummy = de_parallel(model)
-        _save_model(model_dummy)
-        model_dummy = de_parallel(model)
-        _export_onnx(model_dummy)
-
+    xgen_record(args_ai,save_model, float(fi), epoch=-1)
 
     if RANK in (-1, 0):
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
@@ -513,7 +546,7 @@ def parse_opt(known=False):
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
-    parser.add_argument('--epochs', type=int, default=300)
+    # parser.add_argument('--epochs', type=int, default=300)
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
@@ -555,14 +588,15 @@ def parse_opt(known=False):
     return opt
 
 
-def training_main(opt, callbacks=Callbacks()):
+def training_main(args_ai, callbacks=Callbacks()):
     # Checks
 
-    if opt is None and opt.config is not None:
+    opt = parse_opt()
+    if args_ai is None and opt.config is not None:
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-
+    opt = xgen_init(opt, args_ai)
 
     if RANK in (-1, 0):
         print_args(vars(opt))
@@ -604,7 +638,7 @@ def training_main(opt, callbacks=Callbacks()):
 
     # Train
     if not opt.evolve:
-        train(opt.hyp, opt, device, callbacks)
+        train(opt.hyp, opt, args_ai, device, callbacks)
         if WORLD_SIZE > 1 and RANK == 0:
             LOGGER.info('Destroying process group... ')
             dist.destroy_process_group()
@@ -697,21 +731,11 @@ def training_main(opt, callbacks=Callbacks()):
                     f"Results saved to {colorstr('bold', save_dir)}\n"
                     f'Usage example: $ python train.py --hyp {evolve_yaml}')
 
-
-def run(**kwargs):
-    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
-    opt = parse_opt(True)
-    for k, v in kwargs.items():
-        setattr(opt, k, v)
-    main(opt)
-    return opt
-
-
 if __name__ == "__main__":
     # opt = parse_opt()
     # main(opt)
 
-    # task_json = 'configs/dense_effnetb0/dense_yolov5s.json'
+    # task_json = 'configs/dense_yolov5s/dense_yolov5sn.json'
     # args_ai = json.load(open(task_json,'r'))
     args_ai = None
     training_main(args_ai)

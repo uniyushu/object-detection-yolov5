@@ -13,7 +13,7 @@ fi
 
 python -m torch.distributed.launch \
     --master_port ${PORT} \
-    --nproc_per_node 4 train.py \
+    --nproc_per_node 4 train_script_main.py \
     --batch ${BATCH_SIZE} \
     --hyp ${HYP} \
     --data coco.yaml \

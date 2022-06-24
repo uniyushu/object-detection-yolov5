@@ -18,6 +18,8 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 from utils.general import LOGGER, file_update_date, git_describe
 
 try:
@@ -310,3 +312,24 @@ class ModelEMA:
     def update_attr(self, model, include=(), exclude=('process_group', 'reducer')):
         # Update EMA attributes
         copy_attr(self.ema, model, include, exclude)
+
+def print_sparsity(model=None, show_sparse_only=False, compressed_view=False):
+    if show_sparse_only:
+        print("The sparsity of all params (>0.01): num_nonzeros, total_num, sparsity")
+        total_nz = 0
+        total = 0
+        for (name, W) in model.named_parameters():
+            #print(name, W.shape)
+            non_zeros = W.detach().cpu().numpy().astype(np.float32) != 0
+            num_nonzeros = np.count_nonzero(non_zeros)
+            total_num = non_zeros.size
+            sparsity = 1 - (num_nonzeros * 1.0) / total_num
+            if sparsity > 0.01:
+                print("{}, {}, {}, {}, {}".format(name, non_zeros.shape, num_nonzeros, total_num, sparsity))
+                total_nz += num_nonzeros
+                total += total_num
+        if total > 0:
+            print("Overall sparsity for layers with sparsity >0.01: {}".format(1 - float(total_nz)/total))
+        else:
+            print("All layers are dense!")
+        return
