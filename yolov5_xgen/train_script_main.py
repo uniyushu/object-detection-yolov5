@@ -455,19 +455,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
-            results, maps, _ = val.run(data_dict,
-                                       batch_size=batch_size // WORLD_SIZE * 2,
-                                       imgsz=imgsz,
-                                       model=ema.ema,
-                                       single_cls=single_cls,
-                                       dataloader=val_loader,
-                                       save_dir=save_dir,
-                                       plots=False,
-                                       callbacks=callbacks,
-                                       compute_loss=compute_loss)
-            fi = fitness(np.array(results).reshape(1, -1))
             if hasattr(ema, 'ema') is not None:
-                save_model = eme.ema.module if hasattr(eme.ema, 'module') else ema.ema
+                save_model = ema.ema.module if hasattr(ema.ema, 'module') else ema.ema
             else:
                 save_model = model.module if hasattr(model, 'module') else model
             xgen_record(args_ai, save_model, float(fi), epoch=epoch)
