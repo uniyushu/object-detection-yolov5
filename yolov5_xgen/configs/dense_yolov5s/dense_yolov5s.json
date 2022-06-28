@@ -13,7 +13,7 @@
         "cfg": "yolov5s.yaml",
         "weights": null,
         "device": "0,1,2,3",
-        "img_size": 640
+        "imgsz": 640
     },
     "general": {
         "work_place": "yolov5s",
