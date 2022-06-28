@@ -7,7 +7,7 @@
         "eval_data_path": "../datasets/coco",
         "eval_label_path": null,
 
-        "batch": 64,
+        "batch_size": 64,
         "hyp": "./data/hyps/hyp.scratch-low.yaml",
         "data": "coco.yaml",
         "cfg": "yolov5sn.yaml",
