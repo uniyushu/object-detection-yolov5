@@ -282,7 +282,6 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model = DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK)
 
     CL.init(args=args_ai, model=model, optimizer=optimizer, data_loader=train_loader)
-    # CPL.init(args, model, optimizer)
     print_sparsity(model, show_sparse_only=True)
 
     # Model attributes
@@ -317,7 +316,6 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
 
         # Cocopie pruning 2: add prune_update ***************************************************************************
         CL.before_each_train_epoch(epoch=epoch)
-        # CPL.update_var(epoch)
         # Cocopie end
 
         model.train()
@@ -375,7 +373,6 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
 
                 # Cocopie pruning 4: add prune_update_loss **********************************************************
                 loss = CL.update_loss(loss)
-                # loss = CPL.update_loss(loss)
                 # Cocopie end
 
             # Backward
@@ -407,7 +404,6 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
 
         # Cocopie pruning 3: add prune_update_learning_rate *************************************************************
         CL.after_scheduler_step(epoch=epoch)
-        # CPL.update_lr(optimizer, epoch, args)
         # Cocopie end
 
         if RANK in (-1, 0):
