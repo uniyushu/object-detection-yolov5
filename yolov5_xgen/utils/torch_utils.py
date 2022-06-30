@@ -333,3 +333,13 @@ def print_sparsity(model=None, show_sparse_only=False, compressed_view=False):
         else:
             print("All layers are dense!")
         return
+
+def is_parallel(model):
+    # Returns True if model is of type DP or DDP
+    return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
+
+
+def de_parallel(model):
+    # De-parallelize a model: returns single-GPU model if model is of type DP or DDP
+    return model.module if is_parallel(model) else model
+

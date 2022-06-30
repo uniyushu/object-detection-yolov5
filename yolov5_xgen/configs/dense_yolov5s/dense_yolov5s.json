@@ -1,6 +1,6 @@
 {
     "origin": {
-        "common_train_epochs": 0,
+        "common_train_epochs": 300,
 
         "train_data_path": "../datasets/coco",
         "train_label_path": null,
@@ -53,6 +53,7 @@
        "searching_step_size": null
    },
     "compiler": {
-       "input_shape": "(1,3,320,320)"
+       "input_shape": "(1,3,320,320)",
+        "devices": ["dev"]
    }
 }

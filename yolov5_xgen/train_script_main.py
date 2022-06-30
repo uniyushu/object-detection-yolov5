@@ -15,6 +15,7 @@ Usage:
 import argparse
 import math
 import os
+import json
 import random
 import sys
 import time
@@ -56,11 +57,10 @@ from utils.metrics import fitness
 from utils.plots import plot_evolve, plot_labels
 from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, torch_distributed_zero_first
 
-from third_party.co_lib.co_lib import Co_Lib as CL
+from co_lib import Co_Lib as CL
 from utils.torch_utils import print_sparsity
-
-# from xgen_tools import *
-from third_party.toolchain.model_train.xgen_tools.model_train_tools import *
+from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
+from utils.torch_utils import de_parallel
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -452,10 +452,9 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
             if hasattr(ema, 'ema') is not None:
-                save_model = ema.ema.module if hasattr(ema.ema, 'module') else ema.ema
+                xgen_record(args_ai, ema.ema, float(fi), epoch=epoch)
             else:
-                save_model = model.module if hasattr(model, 'module') else model
-            xgen_record(args_ai, save_model, float(fi), epoch=epoch)
+                xgen_record(args_ai, model, float(fi), epoch=epoch)
 
             # Stop Single-GPU
             if RANK == -1 and stopper(epoch=epoch, fitness=fi):
@@ -486,11 +485,9 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                                compute_loss=compute_loss)
     fi = fitness(np.array(results).reshape(1, -1))
     if hasattr(ema, 'ema') is not None:
-        save_model = ema.ema.module if hasattr(ema.ema, 'module') else ema.ema
+        xgen_record(args_ai, ema.ema, float(fi), epoch=-1)
     else:
-        save_model = model.module if hasattr(model, 'module') else model
-
-    xgen_record(args_ai,save_model, float(fi), epoch=-1)
+        xgen_record(args_ai, model, float(fi), epoch=-1)
 
     if RANK in (-1, 0):
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
