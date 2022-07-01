@@ -56,10 +56,12 @@ from utils.loss import ComputeLoss
 from utils.metrics import fitness
 from utils.plots import plot_evolve, plot_labels
 from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, torch_distributed_zero_first
+from models.experimental import xgen_model_load
 
 from co_lib import Co_Lib as CL
 from utils.torch_utils import print_sparsity
-from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
+# from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
+from third_party.toolchain.model_train.xgen_tools.model_train_tools import *
 from utils.torch_utils import de_parallel
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
@@ -135,7 +137,10 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
-        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), depth_multiple=opt.depth_multiple,
+                      width_multiple=opt.width_multiple).to(device)  # create
+
+    xgen_load(model, args_ai=args_ai)
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -451,10 +456,9 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
-            if hasattr(ema, 'ema') is not None:
-                xgen_record(args_ai, ema.ema, float(fi), epoch=epoch)
-            else:
-                xgen_record(args_ai, model, float(fi), epoch=epoch)
+            model_dummy = ema.ema if ema else model
+            model_dummy = xgen_model_load(model_dummy, map_location='cpu', inplace=True, fuse=True, quant=False)
+            xgen_record(args_ai, model_dummy, 0.0, epoch=epoch)
 
             # Stop Single-GPU
             if RANK == -1 and stopper(epoch=epoch, fitness=fi):
@@ -473,21 +477,22 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
 
-    results, maps, _ = val.run(data_dict,
-                               batch_size=batch_size // WORLD_SIZE * 2,
-                               imgsz=imgsz,
-                               model=ema.ema,
-                               single_cls=single_cls,
-                               dataloader=val_loader,
-                               save_dir=save_dir,
-                               plots=False,
-                               callbacks=callbacks,
-                               compute_loss=compute_loss)
-    fi = fitness(np.array(results).reshape(1, -1))
-    if hasattr(ema, 'ema') is not None:
-        xgen_record(args_ai, ema.ema, float(fi), epoch=-1)
-    else:
-        xgen_record(args_ai, model, float(fi), epoch=-1)
+    # results, maps, _ = val.run(data_dict,
+    #                            batch_size=batch_size // WORLD_SIZE * 2,
+    #                            imgsz=imgsz,
+    #                            model=ema.ema,
+    #                            single_cls=single_cls,
+    #                            dataloader=val_loader,
+    #                            save_dir=save_dir,
+    #                            plots=False,
+    #                            callbacks=callbacks,
+    #                            compute_loss=compute_loss)
+    # fi = fitness(np.array(results).reshape(1, -1))
+
+    epoch = -1
+    model_dummy = ema.ema if ema else model
+    model_dummy = xgen_model_load(model_dummy, map_location='cpu', inplace=True, fuse=True, quant=False)
+    xgen_record(args_ai, model_dummy, 0.0, epoch=epoch)
 
     if RANK in (-1, 0):
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
@@ -516,7 +521,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         callbacks.run('on_train_end', last, best, plots, epoch, results)
 
     torch.cuda.empty_cache()
-    return results
+    return args_ai
 
 
 def parse_opt(known=False):
@@ -578,6 +583,7 @@ def training_main(args_ai, callbacks=Callbacks()):
             args_ai = json.load(f)
 
     opt = xgen_init(opt, args_ai)
+    print(f'width: {opt.width_multiple}')
 
     if RANK in (-1, 0):
         print_args(vars(opt))

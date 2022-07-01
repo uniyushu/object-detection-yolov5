@@ -3,11 +3,13 @@
 Experimental modules
 """
 import math
+import copy
 
 import numpy as np
 import torch
 import torch.nn as nn
 
+from utils.torch_utils import de_parallel
 from utils.downloads import attempt_download
 
 
@@ -125,3 +127,38 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True, quant=Fals
         model.stride = model[torch.argmax(torch.tensor([m.stride.max() for m in model])).int()].stride  # max stride
         assert all(model[0].nc == m.nc for m in model), f'Models have different class counts: {[m.nc for m in model]}'
         return model  # return ensemble
+
+def xgen_model_load(raw_model, map_location='cpu', inplace=True, fuse=True, quant=False):
+    if not quant:
+        from models.yolo import Detect, Model
+        from models.common import Conv
+    else:
+        from models.yolo_quant import Detect, Model
+        from models.common_quant import Conv
+
+    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+    model = Ensemble()
+    ckpt = copy.deepcopy(de_parallel(raw_model)).float().to(map_location)
+    model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
+
+    # Compatibility updates
+    for m in model.modules():
+        t = type(m)
+        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
+            m.inplace = inplace  # torch 1.7.0 compatibility
+            if t is Detect:
+                if not isinstance(m.anchor_grid, list):  # new Detect Layer compatibility
+                    delattr(m, 'anchor_grid')
+                    setattr(m, 'anchor_grid', [torch.zeros(1)] * m.nl)
+        elif t is Conv:
+            m._non_persistent_buffers_set = set()  # torch 1.6.0 compatibility
+        elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
+            m.recompute_scale_factor = None  # torch 1.11.0 compatibility
+
+    from models.yolo import Detect
+    for k, m in model.named_modules():
+        if isinstance(m, Detect):
+            m.inplace = False
+            m.onnx_dynamic = False
+            m.export = True
+    return model  # return ensemble

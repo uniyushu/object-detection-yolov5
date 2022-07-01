@@ -6,6 +6,7 @@
         "train_label_path": null,
         "eval_data_path": "../datasets/coco",
         "eval_label_path": null,
+        "pretrain_model_weights_path": null,
 
         "batch_size": 64,
         "hyp": "./data/hyps/hyp.scratch-low.yaml",
@@ -13,7 +14,9 @@
         "cfg": "yolov5sn.yaml",
         "weights": null,
         "device": "0,1,2,3",
-        "imgsz": 640
+        "imgsz": 640,
+
+        "width_multiple": null,
     },
     "general": {
         "work_place": "yolov5sn",
@@ -45,14 +48,15 @@
         "max_searching": 3
     },
    "user_requirements": {
-       "accuracy": null,
-       "latency": 30,
-       "margin": 2,
-       "searching_variable": null,
-       "searching_range": null,
+       "accuracy": 0.34879,
+       "latency": null,
+       "margin": 0.05,
+       "searching_variable": ["width_multiple"],
+       "searching_range": [0.0, 0.5],
        "searching_step_size": null
    },
     "compiler": {
-       "input_shape": "(1,3,320,320)"
+       "input_shape": "(1,3,320,320)",
+        "devices": ["dev"]
    }
 }
