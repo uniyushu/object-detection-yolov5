@@ -407,7 +407,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                     return
             # end batch ------------------------------------------------------------------------------------------------
 
-            break   # TODO: delete
+            # break   # TODO: delete
 
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
