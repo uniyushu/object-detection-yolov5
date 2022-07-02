@@ -8,7 +8,7 @@
         "eval_label_path": null,
 
         "batch_size": 64,
-        "hyp": "./data/hyps/hyp.scratch-low.yaml",
+        "hyp": "./data/hyps/hyp.scratch-high.yaml",
         "data": "coco.yaml",
         "cfg": "yolov5m.yaml",
         "weights": null,
@@ -49,10 +49,10 @@
     },
    "user_requirements": {
        "accuracy": null,
-       "latency": 58.895,
+       "latency": 21.986,
        "margin": 0.1,
        "searching_variable": "width_multiple",
-       "searching_range": [0.05, 0.75],
+       "searching_range": [0.1, 0.75],
        "searching_step_size": null
    },
     "compiler": {
