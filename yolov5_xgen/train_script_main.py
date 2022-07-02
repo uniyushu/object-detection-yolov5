@@ -69,6 +69,8 @@ LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
+COCOPIE_MAP = {'epochs': XgenArgs.cocopie_train_epochs}
+
 def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     if opt.quant:
         from models.yolo_quant import Model
@@ -76,7 +78,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         from models.yolo import Model
 
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
-        Path(opt.save_dir), opt.common_train_epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
+        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     callbacks.run('on_pretrain_routine_start')
 
@@ -105,7 +107,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         if loggers.wandb:
             data_dict = loggers.wandb.data_dict
             if resume:
-                weights, epochs, hyp, batch_size = opt.weights, opt.common_train_epochs, opt.hyp, opt.batch_size
+                weights, epochs, hyp, batch_size = opt.weights, opt.epochs, opt.hyp, opt.batch_size
 
         # Register actions
         for k in methods(loggers):
@@ -595,7 +597,7 @@ def training_main(args_ai, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    opt = xgen_init(opt, args_ai)
+    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
     print(f'width: {opt.width_multiple}')
 
     if RANK in (-1, 0):
