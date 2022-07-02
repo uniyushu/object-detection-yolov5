@@ -10,7 +10,7 @@
     "common_train_batch_size": 1,
     "root_path": "./Xgen/",
     "pretrain_model_weights_path": null,
-    "batch_size": 64,
+    "batch_size": 128,
     "hyp": "./data/hyps/hyp.scratch-high.yaml",
     "data": "coco.yaml",
     "cfg": "yolov5m.yaml",
