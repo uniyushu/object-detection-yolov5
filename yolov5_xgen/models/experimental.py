@@ -11,7 +11,7 @@ import torch.nn as nn
 
 from utils.torch_utils import de_parallel
 from utils.downloads import attempt_download
-
+from utils.general import check_img_size
 
 class CrossConv(nn.Module):
     # Cross Convolution Downsample
@@ -128,7 +128,7 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True, quant=Fals
         assert all(model[0].nc == m.nc for m in model), f'Models have different class counts: {[m.nc for m in model]}'
         return model  # return ensemble
 
-def xgen_model_load(raw_model, map_location='cpu', inplace=True, fuse=True, quant=False):
+def xgen_model_load(weights, device='cpu', inplace=True, fuse=True, quant=False, imgsz=(320,320)):
     if not quant:
         from models.yolo import Detect, Model
         from models.common import Conv
@@ -136,29 +136,29 @@ def xgen_model_load(raw_model, map_location='cpu', inplace=True, fuse=True, quan
         from models.yolo_quant import Detect, Model
         from models.common_quant import Conv
 
-    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
-    model = Ensemble()
-    ckpt = copy.deepcopy(de_parallel(raw_model)).float().to(map_location)
-    model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
+    model = attempt_load(weights, map_location=device, inplace=True, fuse=fuse, quant=quant)  # load FP32 model
+    nc, names = model.nc, model.names  # number of classes, class names
 
-    # Compatibility updates
-    for m in model.modules():
-        t = type(m)
-        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
-            m.inplace = inplace  # torch 1.7.0 compatibility
-            if t is Detect:
-                if not isinstance(m.anchor_grid, list):  # new Detect Layer compatibility
-                    delattr(m, 'anchor_grid')
-                    setattr(m, 'anchor_grid', [torch.zeros(1)] * m.nl)
-        elif t is Conv:
-            m._non_persistent_buffers_set = set()  # torch 1.6.0 compatibility
-        elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
-            m.recompute_scale_factor = None  # torch 1.11.0 compatibility
+    # Checks
+    imgsz *= 2 if len(imgsz) == 1 else 1  # expand
+    assert nc == len(names), f'Model class count {nc} != len(names) {len(names)}'
 
-    from models.yolo import Detect
+    # Input
+    gs = int(max(model.stride))  # grid size (max stride)
+    imgsz = [check_img_size(x, gs) for x in imgsz]  # verify img_size are gs-multiples
+    # im = torch.zeros(batch_size, 3, *imgsz).to(device)  # image size(1,3,320,192) BCHW iDetection
+    im = torch.randn(1, 3, *imgsz).to(device)
+
+    # Update model
+    model.eval()  # training mode = no Detect() layer grid construction
     for k, m in model.named_modules():
         if isinstance(m, Detect):
-            m.inplace = False
+            m.inplace = inplace
             m.onnx_dynamic = False
             m.export = True
-    return model  # return ensemble
+
+    for _ in range(2):
+        y = model(im)  # dry runs
+    shape = tuple(y[0].shape)  # model output shape
+
+    return model

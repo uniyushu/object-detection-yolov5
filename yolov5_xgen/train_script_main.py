@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import copy
 import math
 import os
 import json
@@ -32,6 +33,8 @@ from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam, AdamW, lr_scheduler
 from tqdm import tqdm
+
+from models.yolo import Detect
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -59,10 +62,8 @@ from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_devic
 from models.experimental import xgen_model_load
 
 from co_lib import Co_Lib as CL
-from utils.torch_utils import print_sparsity
-# from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
-from third_party.toolchain.model_train.xgen_tools.model_train_tools import *
-from utils.torch_utils import de_parallel
+from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
+from utils.torch_utils import de_parallel, print_sparsity
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -316,6 +317,9 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 f'Using {train_loader.num_workers * WORLD_SIZE} dataloader workers\n'
                 f"Logging results to {colorstr('bold', save_dir)}\n"
                 f'Starting training for {epochs} epochs...')
+
+    if epochs <= 0:
+        epochs = 1
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
 
@@ -403,6 +407,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                     return
             # end batch ------------------------------------------------------------------------------------------------
 
+            break   # TODO: delete
+
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
@@ -456,9 +462,12 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
-            model_dummy = ema.ema if ema else model
-            model_dummy = xgen_model_load(model_dummy, map_location='cpu', inplace=True, fuse=True, quant=False)
-            xgen_record(args_ai, model_dummy, 0.0, epoch=epoch)
+            model_dummy = xgen_model_load(last, device='cpu', inplace=True, fuse=True, quant=False)
+            xgen_record(args_ai, model_dummy, float(fi), epoch=epoch)
+            from export import run
+            onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
+            run(weights=last)
+            os.system(f"cp {os.path.splitext(last)[0]+'.onnx'} {onnx_save_path}")
 
             # Stop Single-GPU
             if RANK == -1 and stopper(epoch=epoch, fitness=fi):
@@ -477,24 +486,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
 
-    # results, maps, _ = val.run(data_dict,
-    #                            batch_size=batch_size // WORLD_SIZE * 2,
-    #                            imgsz=imgsz,
-    #                            model=ema.ema,
-    #                            single_cls=single_cls,
-    #                            dataloader=val_loader,
-    #                            save_dir=save_dir,
-    #                            plots=False,
-    #                            callbacks=callbacks,
-    #                            compute_loss=compute_loss)
-    # fi = fitness(np.array(results).reshape(1, -1))
-
-    epoch = -1
-    model_dummy = ema.ema if ema else model
-    model_dummy = xgen_model_load(model_dummy, map_location='cpu', inplace=True, fuse=True, quant=False)
-    xgen_record(args_ai, model_dummy, 0.0, epoch=epoch)
-
     if RANK in (-1, 0):
+        epoch = -1
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
         for f in last, best:
             if f.exists():
@@ -518,10 +511,30 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                     if is_coco:
                         callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
 
-        callbacks.run('on_train_end', last, best, plots, epoch, results)
+        if epoch != 0:
+            callbacks.run('on_train_end', last, best, plots, epoch, results)
+
+    results, maps, _ = val.run(data_dict,
+                               batch_size=batch_size // WORLD_SIZE * 2,
+                               imgsz=imgsz,
+                               model=ema.ema,
+                               single_cls=single_cls,
+                               dataloader=val_loader,
+                               save_dir=save_dir,
+                               plots=False,
+                               callbacks=callbacks,
+                               compute_loss=compute_loss)
+    fi = fitness(np.array(results).reshape(1, -1))
+
+    model_dummy = xgen_model_load(last, device='cpu', inplace=True, fuse=True, quant=False)
+    xgen_record(args_ai, model_dummy, float(fi), epoch=-1)
+    from export import run
+    onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
+    run(weights=last)
+    os.system(f"cp {os.path.splitext(last)[0] + '.onnx'} {onnx_save_path}")
 
     torch.cuda.empty_cache()
-    return args_ai
+    return results, args_ai
 
 
 def parse_opt(known=False):
@@ -550,7 +563,7 @@ def parse_opt(known=False):
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
-    parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
+    parser.add_argument('--workers', type=int, default=0, help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
@@ -625,7 +638,8 @@ def training_main(args_ai, callbacks=Callbacks()):
 
     # Train
     if not opt.evolve:
-        train(opt.hyp, opt, args_ai, device, callbacks)
+        _, args_ai = train(opt.hyp, opt, args_ai, device, callbacks)
+        return args_ai
         if WORLD_SIZE > 1 and RANK == 0:
             LOGGER.info('Destroying process group... ')
             dist.destroy_process_group()
@@ -717,6 +731,8 @@ def training_main(args_ai, callbacks=Callbacks()):
         LOGGER.info(f'Hyperparameter evolution finished {opt.evolve} generations\n'
                     f"Results saved to {colorstr('bold', save_dir)}\n"
                     f'Usage example: $ python train.py --hyp {evolve_yaml}')
+
+        return args_ai
 
 if __name__ == "__main__":
     # opt = parse_opt()

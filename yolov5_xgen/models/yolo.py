@@ -119,9 +119,9 @@ class Model(nn.Module):
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
 
-        if depth_multiple and depth_multiple.isdigit():
+        if depth_multiple and isinstance(depth_multiple, (int, float)):
             self.yaml['depth_multiple'] = depth_multiple
-        if width_multiple and width_multiple.isdigit():
+        if width_multiple and isinstance(width_multiple, (int, float)):
             self.yaml['width_multiple'] = width_multiple
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         print(self.model)

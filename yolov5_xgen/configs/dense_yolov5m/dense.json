@@ -7,26 +7,26 @@
         "eval_data_path": "../datasets/coco",
         "eval_label_path": null,
 
-        "batch_size": 128,
+        "batch_size": 64,
         "hyp": "./data/hyps/hyp.scratch-low.yaml",
         "data": "coco.yaml",
-        "cfg": "yolov5s.yaml",
+        "cfg": "yolov5m.yaml",
         "weights": null,
         "device": "0,1,2,3",
         "imgsz": 640,
 
-        "width_multiple": 0.5,
-        "depth_multiple": null
+        "width_multiple": 0.75,
+        "depth_multiple": 0.67
     },
     "general": {
-        "work_place": "yolov5s",
+        "work_place": "yolov5m",
         "tran_scripts_path": null
     },
     "train": {
         "log_save_folder": "logs",
         "eval_dataset_id": null,
         "training_dataset_id": null,
-        "uuid": "yolov5s",
+        "uuid": "yolov5m",
         "accuracy_reverse_yn": 0,
         "common_save_best_yn": 1
     },
@@ -45,14 +45,14 @@
     },
     "task": {
         "pretrained_model_path": null,
-        "max_searching": 3
+        "max_searching": 10
     },
    "user_requirements": {
        "accuracy": null,
-       "latency": 21.986,
+       "latency": 58.895,
        "margin": 0.1,
        "searching_variable": "width_multiple",
-       "searching_range": [0.1, 0.5],
+       "searching_range": [0.05, 0.75],
        "searching_step_size": null
    },
     "compiler": {
