@@ -31,5 +31,5 @@ from cocogen import run
 #     return res
 
 if __name__ == '__main__':
-    xgen(training_main, run, xgen_config_path="./configs/dense_yolov5m/dense.json", xgen_mode='scaling')
+    xgen(training_main, run, xgen_config_path="configs/dense_yolov5m/dense_val.json", xgen_mode='scaling')
 

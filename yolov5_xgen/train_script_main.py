@@ -119,7 +119,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
     init_seeds(1 + RANK)
     with torch_distributed_zero_first(LOCAL_RANK):
         data_dict = data_dict or check_dataset(data)  # check if None
-    train_path, val_path = data_dict['train'], data_dict['val']
+    train_path, val_path = opt.train_data_path, opt.eval_data_path
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {data}'  # check
@@ -132,7 +132,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors'),
+                      depth_multiple=opt.depth_multiple, width_multiple=opt.width_multiple).to(device)  # create
         print(model)
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
         csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
@@ -143,7 +144,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), depth_multiple=opt.depth_multiple,
                       width_multiple=opt.width_multiple).to(device)  # create
 
-    xgen_load(model, args_ai=args_ai)
+    # xgen_load(model, args_ai=args_ai)
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -464,7 +465,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
-            model_dummy = xgen_model_load(last, device='cpu', inplace=True, fuse=True, quant=False)
+            model_dummy = ema.ema if ema else model
             xgen_record(args_ai, model_dummy, float(fi), epoch=epoch)
             from export import run
             onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
@@ -528,7 +529,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                                compute_loss=compute_loss)
     fi = fitness(np.array(results).reshape(1, -1))
 
-    model_dummy = xgen_model_load(last, device='cpu', inplace=True, fuse=True, quant=False)
+    model_dummy = ema.ema if ema else model
     xgen_record(args_ai, model_dummy, float(fi), epoch=-1)
     from export import run
     onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
