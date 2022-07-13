@@ -144,7 +144,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), depth_multiple=opt.depth_multiple,
                       width_multiple=opt.width_multiple).to(device)  # create
 
-    # xgen_load(model, args_ai=args_ai)
+    xgen_load(model, args_ai=args_ai)
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
