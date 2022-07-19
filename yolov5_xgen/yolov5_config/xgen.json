@@ -21,7 +21,7 @@
   },
   "general": {
     "user_id": "test",
-    "work_place": "./yolov5m",
+    "work_place": null,
     "tran_scripts_path": null
   },
   "prune": {
