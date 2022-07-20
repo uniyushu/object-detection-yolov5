@@ -321,8 +321,11 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                 f"Logging results to {colorstr('bold', save_dir)}\n"
                 f'Starting training for {epochs} epochs...')
 
+    debug = False
     if epochs <= 0:
         epochs = 1
+        debug = True
+
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
 
@@ -410,7 +413,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                     return
             # end batch ------------------------------------------------------------------------------------------------
 
-            # break   # TODO: delete
+            if debug:
+                break
 
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
