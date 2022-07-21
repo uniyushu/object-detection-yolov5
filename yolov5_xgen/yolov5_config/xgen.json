@@ -17,7 +17,8 @@
     "device": "0",
     "imgsz": 640,
     "width_multiple": 0.2923941511330743,
-    "depth_multiple": 0.67
+    "depth_multiple": 0.67,
+    "workers": 8
   },
   "task": {
     "pretrained_model_path": "./yolov5_config/xgen.pth",
