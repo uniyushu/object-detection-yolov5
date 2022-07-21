@@ -37,7 +37,7 @@
     "sp_admm_rho": 0.001,
     "sp_admm_lr": 0.01,
     "sp_global_weight_sparsity": false,
-    "sp_prune_ratios": 0,
+    "sp_prune_ratios": 0
   },
   
   "user_requirements": {
