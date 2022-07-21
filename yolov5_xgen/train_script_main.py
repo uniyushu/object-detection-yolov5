@@ -69,7 +69,9 @@ LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
-COCOPIE_MAP = {'epochs': XgenArgs.cocopie_train_epochs}
+COCOPIE_MAP = {'train_data_path': XgenArgs.cocopie_train_data_path,
+               'eval_data_path': XgenArgs.cocopie_eval_data_path,
+               'epochs': XgenArgs.cocopie_train_epochs}
 
 def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     if opt.quant:
