@@ -120,7 +120,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
     cuda = device.type != 'cpu'
     init_seeds(1 + RANK)
     with torch_distributed_zero_first(LOCAL_RANK):
-        data_dict = data_dict or check_dataset(data)  # check if None
+        data_dict = data_dict or check_dataset(data, extract_dir=opt.train_data_path)  # check if None
     train_path, val_path = opt.train_data_path, opt.eval_data_path
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
