@@ -648,10 +648,10 @@ def training_main(args_ai, callbacks=Callbacks()):
     # Train
     if not opt.evolve:
         _, args_ai = train(opt.hyp, opt, args_ai, device, callbacks)
-        return args_ai
         if WORLD_SIZE > 1 and RANK == 0:
             LOGGER.info('Destroying process group... ')
             dist.destroy_process_group()
+        return args_ai
 
     # Evolve hyperparameters (optional)
     else:
