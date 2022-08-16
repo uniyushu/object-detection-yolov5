@@ -34,8 +34,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam, AdamW, lr_scheduler
 from tqdm import tqdm
 
-from models.yolo import Detect
-
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
@@ -62,7 +60,7 @@ from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_devic
 from models.experimental import xgen_model_load
 
 from co_lib import Co_Lib as CL
-from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs,xgen
+from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs
 from utils.torch_utils import de_parallel, print_sparsity
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
@@ -548,7 +546,7 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
 
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
+    parser.add_argument('-c', '--config', default=None, type=str, metavar='FILE',
                                help='YAML config file specifying default arguments')
     # parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='initial weights path')
     # parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
@@ -596,7 +594,7 @@ def parse_opt(known=False):
     return opt
 
 
-def training_main(args_ai, callbacks=Callbacks()):
+def training_main(args_ai=None, callbacks=Callbacks()):
     # Checks
 
     opt = parse_opt()
@@ -604,8 +602,11 @@ def training_main(args_ai, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
-    print(f'width: {opt.width_multiple}')
+    opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
+    print(args_ai['general'])
+    # print({args_ai['origin']})
+
+    opt.device = ''.join(args_ai['general']['CUDA_VISIBLE_DEVICES'].split())
 
     if RANK in (-1, 0):
         print_args(vars(opt))
@@ -651,7 +652,7 @@ def training_main(args_ai, callbacks=Callbacks()):
         if WORLD_SIZE > 1 and RANK == 0:
             LOGGER.info('Destroying process group... ')
             dist.destroy_process_group()
-        return args_ai
+        # return args_ai
 
     # Evolve hyperparameters (optional)
     else:
@@ -749,5 +750,4 @@ if __name__ == "__main__":
 
     # task_json = 'configs/dense_yolov5s/dense_yolov5sn.json'
     # args_ai = json.load(open(task_json,'r'))
-    args_ai = None
-    training_main(args_ai)
+    training_main(args_ai=None)
