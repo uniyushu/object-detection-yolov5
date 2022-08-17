@@ -3,7 +3,10 @@
     "user_id": "test",
     "work_place": null,
     "tran_scripts_path": null,
-    "pretrained_model_path": "./yolov5_config/xgen.pth"
+    "pretrained_model_path": "./yolov5_config/xgen.pth",
+    "enable_ddp": true,
+    "CUDA_VISIBLE_DEVICES":  "0,1",
+    "random_seed": 3407
   },
   "user_requirements": {
     "power": null,
@@ -28,18 +31,18 @@
     "common_learning_rate": 0.001,
     "common_train_epochs": 300,
     "common_eval_epochs": 1,
-    "common_train_batch_size": 1,
+    "common_train_batch_size": 16,
     "root_path": "./Xgen/",
     "batch_size": 32,
     "hyp": "./data/hyps/hyp.scratch-high.yaml",
     "data": "coco.yaml",
     "cfg": "yolov5m.yaml",
     "weights": null,
-    "device": "0",
+    "device": null,
     "imgsz": 640,
     "width_multiple": 0.2923941511330743,
     "depth_multiple": 0.67,
-    "workers": 8
+    "workers": 16
   },
   "pruning": {
     "prune_method": null,
