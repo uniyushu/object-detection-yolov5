@@ -65,6 +65,7 @@ from utils.torch_utils import de_parallel, print_sparsity
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
+print(f'rank: {RANK}')
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 COCOPIE_MAP = {'train_data_path': XgenArgs.cocopie_train_data_path,
@@ -200,7 +201,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
-    ema = ModelEMA(model) if RANK in [-1, 0] else None
+    # ema = ModelEMA(model) if RANK in [-1, 0] else None
+    ema = ModelEMA(model)
 
     # Resume
     start_epoch, best_fitness = 0, 0.0

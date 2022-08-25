@@ -24,9 +24,9 @@
     "opset_version": 11
   },
   "training_script_args": {
-    "train_data_path": "/data/object-detection-yolov5/coco",
+    "train_data_path": "/data/xukai/code/datasets/coco/",
     "train_label_path": null,
-    "eval_data_path": "/data/object-detection-yolov5/coco",
+    "eval_data_path": "/data/xukai/code/datasets/coco/",
     "eval_label_path": null,
     "common_learning_rate": 0.001,
     "common_train_epochs": 300,
