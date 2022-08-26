@@ -522,26 +522,27 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         if epoch != 0:
             callbacks.run('on_train_end', last, best, plots, epoch, results)
 
-    results, maps, _ = val.run(data_dict,
-                               batch_size=batch_size // WORLD_SIZE * 2,
-                               imgsz=imgsz,
-                               model=ema.ema,
-                               single_cls=single_cls,
-                               dataloader=val_loader,
-                               save_dir=save_dir,
-                               plots=False,
-                               callbacks=callbacks,
-                               compute_loss=compute_loss)
-    fi = fitness(np.array(results).reshape(1, -1))
+        results, maps, _ = val.run(data_dict,
+                                   batch_size=batch_size // WORLD_SIZE * 2,
+                                   imgsz=imgsz,
+                                   model=ema.ema,
+                                   single_cls=single_cls,
+                                   dataloader=val_loader,
+                                   save_dir=save_dir,
+                                   plots=False,
+                                   callbacks=callbacks,
+                                   compute_loss=compute_loss)
+        fi = fitness(np.array(results).reshape(1, -1))
 
-    model_dummy = ema.ema if ema else model
-    xgen_record(args_ai, model_dummy, float(fi), epoch=-1)
-    from export import run
-    onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
-    run(weights=last)
-    os.system(f"cp {os.path.splitext(last)[0] + '.onnx'} {onnx_save_path}")
+        model_dummy = ema.ema if ema else model
+        xgen_record(args_ai, model_dummy, float(fi), epoch=-1)
+        from export import run
+        onnx_save_path = os.path.join(args_ai['general']['work_place'], args_ai['train']['uuid'] + '.onnx')
+        run(weights=last)
+        os.system(f"cp {os.path.splitext(last)[0] + '.onnx'} {onnx_save_path}")
 
-    torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
+
     return results, args_ai
 
 
@@ -604,10 +605,10 @@ def training_main(args_ai=None, callbacks=Callbacks()):
             args_ai = json.load(f)
 
     opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
-    print(args_ai['general'])
-    # print({args_ai['origin']})
+    # opt = xgen_init(opt, args_ai, COCOPIE_MAP)
 
-    opt.device = ''.join(args_ai['general']['CUDA_VISIBLE_DEVICES'].split())
+    len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
+    opt.device = ','.join([str(i) for i in range(len_gpu)])
 
     if RANK in (-1, 0):
         print_args(vars(opt))
@@ -749,6 +750,6 @@ if __name__ == "__main__":
     # opt = parse_opt()
     # main(opt)
 
-    # task_json = 'configs/dense_yolov5s/dense_yolov5sn.json'
-    # args_ai = json.load(open(task_json,'r'))
-    training_main(args_ai=None)
+    task_json = './yolov5_config/xgen_val.json'
+    args_ai = json.load(open(task_json,'r'))
+    training_main(args_ai=args_ai)

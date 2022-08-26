@@ -30,7 +30,6 @@
     "eval_label_path": null,
     "common_learning_rate": 0.001,
     "common_train_epochs": 300,
-    "common_eval_epochs": 1,
     "common_train_batch_size": 16,
     "root_path": "./Xgen/",
     "batch_size": 32,
@@ -45,13 +44,17 @@
     "workers": 16
   },
   "pruning": {
-    "prune_method": null,
-    "prune_layers": null,
-    "prune_weight_ranking": "intra-layer",
-    "prune_rate": 0,
-    "admm_update_epoch": 5,
-    "admm_rho": 0.001,
-    "admm_lr": 0.01
+    "sp_retrain": false,
+    "sp_admm": false,
+    "sp_config_file": null,
+    "sp_admm_update_epoch": 5,
+    "sp_admm_rho": 0.001,
+    "sparsity_type": "block_punched",
+    "sp_admm_lr": 0.01,
+    "sp_global_weight_sparsity": false,
+    "sp_admm_block": "(8,4)",
+    "sp_prune_ratios": 0,
+    "sp_prune_threshold": -1.0
   },
   "scaling": {
     "searching_variable": "width_multiple",
