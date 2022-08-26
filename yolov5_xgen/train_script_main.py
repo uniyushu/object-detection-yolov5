@@ -747,9 +747,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    # opt = parse_opt()
-    # main(opt)
+    # task_json = './yolov5_config/xgen.json'
+    # args_ai = json.load(open(task_json,'r'))
 
-    task_json = './yolov5_config/xgen_val.json'
-    args_ai = json.load(open(task_json,'r'))
+    args_ai = None
     training_main(args_ai=args_ai)
