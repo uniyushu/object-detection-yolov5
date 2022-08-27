@@ -3,7 +3,7 @@
     "user_id": "test",
     "work_place": null,
     "tran_scripts_path": null,
-    "pretrained_model_path": "./yolov5_config/xgen.pth",
+    "pretrained_model_path": null,
     "enable_ddp": false,
     "CUDA_VISIBLE_DEVICES": "2,3",
     "random_seed": 3407
@@ -18,7 +18,7 @@
     "margin": 0.1,
     "target_type": "latency",
     "max_sampling": 10,
-        "searching_variable": "width_multiple",
+    "searching_variable": "width_multiple",
     "searching_range": [
       0.1,
       0.75
