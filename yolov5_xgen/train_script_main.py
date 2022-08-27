@@ -751,7 +751,7 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    task_json = './yolov5_config/xgen_val.json'
+    task_json = './yolov5_config/xgen.json'
     args_ai = json.load(open(task_json,'r'))
 
     # args_ai = None
