@@ -610,8 +610,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    # opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
-    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
+    opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
+    # opt = xgen_init(opt, args_ai, COCOPIE_MAP)
 
     # len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
     # opt.device = ','.join([str(i) for i in range(len_gpu)])
