@@ -40,7 +40,8 @@
     "imgsz": 640,
     "width_multiple": 0.2923941511330743,
     "depth_multiple": 0.67,
-    "workers": 16
+    "workers": 16,
+    "noplots": true
   },
   "pruning": {
     "sp_retrain": false,
