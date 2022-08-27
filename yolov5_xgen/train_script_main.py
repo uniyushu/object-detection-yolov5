@@ -432,6 +432,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
             callbacks.run('on_train_epoch_end', epoch=epoch)
             ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
+
+
             if not noval or final_epoch:  # Calculate mAP
                 results, maps, _ = val.run(data_dict,
                                            batch_size=batch_size // WORLD_SIZE * 2,
@@ -442,7 +444,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                                            save_dir=save_dir,
                                            plots=False,
                                            callbacks=callbacks,
-                                           compute_loss=compute_loss)
+                                           compute_loss=compute_loss,
+                                           debug=debug)
 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
@@ -517,7 +520,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                         verbose=True,
                         plots=plots,
                         callbacks=callbacks,
-                        compute_loss=compute_loss)  # val best model with plots
+                        compute_loss=compute_loss,
+                        debug=debug)  # val best model with plots
                     if is_coco:
                         callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
 
@@ -533,7 +537,8 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
                                    save_dir=save_dir,
                                    plots=False,
                                    callbacks=callbacks,
-                                   compute_loss=compute_loss)
+                                   compute_loss=compute_loss,
+                                   debug=debug)
         fi = fitness(np.array(results).reshape(1, -1))
 
         model_dummy = ema.ema if ema else model
@@ -606,8 +611,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
-    # opt = xgen_init(opt, args_ai, COCOPIE_MAP)
+    # opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
+    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
 
     # len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
     # opt.device = ','.join([str(i) for i in range(len_gpu)])
@@ -751,8 +756,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    # task_json = './yolov5_config/xgen.json'
-    # args_ai = json.load(open(task_json,'r'))
+    task_json = './yolov5_config/xgen_val.json'
+    args_ai = json.load(open(task_json,'r'))
 
-    args_ai = None
+    # args_ai = None
     training_main(args_ai=args_ai)

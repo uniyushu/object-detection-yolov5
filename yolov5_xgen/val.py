@@ -122,6 +122,7 @@ def run(
         plots=True,
         callbacks=Callbacks(),
         compute_loss=None,
+        debug=False
 ):
     # Initialize/load model and set device
     training = model is not None
@@ -253,6 +254,8 @@ def run(
             if save_json:
                 save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
             callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
+            if debug:
+                break
 
         # Plot images
         if plots and batch_i < 3:
@@ -262,6 +265,9 @@ def run(
             Thread(target=plot_images, args=(im, output_to_target(out), paths, f, names), daemon=True).start()
 
         callbacks.run('on_val_batch_end')
+
+        if debug:
+            break
 
     # Compute metrics
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy

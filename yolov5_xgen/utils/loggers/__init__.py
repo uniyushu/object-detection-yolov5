@@ -141,7 +141,7 @@ class Loggers():
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
-        if self.tb:
+        if hasattr(self, 'tb'):
             for k, v in x.items():
                 self.tb.add_scalar(k, v, epoch)
 
@@ -167,7 +167,7 @@ class Loggers():
         files = [(self.save_dir / f) for f in files if (self.save_dir / f).exists()]  # filter
         self.logger.info(f"Results saved to {colorstr('bold', self.save_dir)}")
 
-        if self.tb:
+        if hasattr(self, 'tb'):
             for f in files:
                 self.tb.add_image(f.stem, cv2.imread(str(f))[..., ::-1], epoch, dataformats='HWC')
 
