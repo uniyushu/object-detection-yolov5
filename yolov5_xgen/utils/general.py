@@ -319,6 +319,11 @@ def check_version(current='0.0.0', minimum='0.0.0', name='version ', pinned=Fals
         LOGGER.warning(s)
     return result
 
+def file_date(path=__file__):
+    # Return human-readable file modification date, i.e. '2021-3-26'
+    t = datetime.fromtimestamp(Path(path).stat().st_mtime)
+    return f'{t.year}-{t.month}-{t.day}'
+
 
 @try_except
 def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), install=True, cmds=()):

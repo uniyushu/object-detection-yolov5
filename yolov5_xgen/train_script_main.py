@@ -63,9 +63,10 @@ from co_lib import Co_Lib as CL
 from xgen_tools import xgen_record, xgen_init, xgen_load, XgenArgs
 from utils.torch_utils import de_parallel, print_sparsity
 
+os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
-print(f'rank: {RANK}')
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 COCOPIE_MAP = {'train_data_path': XgenArgs.cocopie_train_data_path,
@@ -605,11 +606,12 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
-    # opt = xgen_init(opt, args_ai, COCOPIE_MAP)
+    # opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
+    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
 
-    len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
-    opt.device = ','.join([str(i) for i in range(len_gpu)])
+    # len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
+    # opt.device = ','.join([str(i) for i in range(len_gpu)])
+    opt.device = args_ai['general']['CUDA_VISIBLE_DEVICES']
 
     if RANK in (-1, 0):
         print_args(vars(opt))
@@ -648,6 +650,7 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         torch.cuda.set_device(LOCAL_RANK)
         device = torch.device('cuda', LOCAL_RANK)
         dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
+
 
     # Train
     if not opt.evolve:
@@ -748,8 +751,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    # task_json = './yolov5_config/xgen.json'
-    # args_ai = json.load(open(task_json,'r'))
+    task_json = './yolov5_config/xgen_val.json'
+    args_ai = json.load(open(task_json,'r'))
 
-    args_ai = None
+    # args_ai = None
     training_main(args_ai=args_ai)
