@@ -606,8 +606,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         with open(opt.config, 'r') as f:
             args_ai = json.load(f)
 
-    opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
-    # opt = xgen_init(opt, args_ai, COCOPIE_MAP)
+    # opt, args_ai = xgen_init(opt, args_ai, COCOPIE_MAP)
+    opt = xgen_init(opt, args_ai, COCOPIE_MAP)
 
     # len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
     # opt.device = ','.join([str(i) for i in range(len_gpu)])
@@ -751,8 +751,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    task_json = './yolov5_config/xgen.json'
-    args_ai = json.load(open(task_json,'r'))
+    # task_json = './yolov5_config/xgen.json'
+    # args_ai = json.load(open(task_json,'r'))
 
-    # args_ai = None
+    args_ai = None
     training_main(args_ai=args_ai)
