@@ -70,7 +70,8 @@ WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 COCOPIE_MAP = {'train_data_path': XgenArgs.cocopie_train_data_path,
                'eval_data_path': XgenArgs.cocopie_eval_data_path,
-               'epochs': XgenArgs.cocopie_train_epochs}
+               'epochs': XgenArgs.cocopie_train_epochs,
+               'batch_size': XgenArgs.cocopie_train_batch_size}
 
 def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     if opt.quant:
