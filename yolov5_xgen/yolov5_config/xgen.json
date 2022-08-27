@@ -17,7 +17,13 @@
     "latency": 21.986,
     "margin": 0.1,
     "target_type": "latency",
-    "max_sampling": 10
+    "max_sampling": 10,
+    "searching_variable": "width_multiple",
+    "searching_range": [
+      0.1,
+      0.75
+    ],
+    "searching_granularity": null
   },
   "compiler": {
     "input_shape": "(1,3,320,320)",
