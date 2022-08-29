@@ -5,7 +5,7 @@
     "tran_scripts_path": null,
     "pretrained_model_path": null,
     "enable_ddp": false,
-    "CUDA_VISIBLE_DEVICES": "2,3",
+    "CUDA_VISIBLE_DEVICES": "0,1,2,3",
     "random_seed": 3407
   },
   "user_requirements": {
@@ -36,7 +36,7 @@
     "eval_label_path": null,
     "common_learning_rate": 0.001,
     "common_train_epochs": 300,
-    "batch_size": 64,
+    "batch_size": 32,
     "root_path": "./Xgen/",
     "hyp": "./data/hyps/hyp.scratch-high.yaml",
     "data": "coco.yaml",
