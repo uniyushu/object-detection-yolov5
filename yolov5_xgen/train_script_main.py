@@ -238,6 +238,13 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         LOGGER.info('Using SyncBatchNorm()')
 
+    if 'CUDA_VISIBLE_DEVICES' in args_ai['general'] and cuda and RANK == -1:
+        gpus = args_ai['general']['CUDA_VISIBLE_DEVICES']
+        gpus = len(gpus.split(','))
+        new_batch_size = batch_size * gpus
+        args_ai['origin']['batch_size'] = new_batch_size
+        batch_size = new_batch_size
+
     # Trainloader
     train_loader, dataset = create_dataloader(train_path,
                                               imgsz,
@@ -755,7 +762,7 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    # task_json = './yolov5_config/xgen.json'
+    # task_json = './yolov5_config/xgen_val.json'
     # args_ai = json.load(open(task_json,'r'))
 
     args_ai = None
