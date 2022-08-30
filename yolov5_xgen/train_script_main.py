@@ -238,13 +238,6 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         LOGGER.info('Using SyncBatchNorm()')
 
-    if 'CUDA_VISIBLE_DEVICES' in args_ai['general'] and cuda and RANK == -1:
-        gpus = args_ai['general']['CUDA_VISIBLE_DEVICES']
-        gpus = len(gpus.split(','))
-        new_batch_size = batch_size * gpus
-        args_ai['origin']['batch_size'] = new_batch_size
-        batch_size = new_batch_size
-
     # Trainloader
     train_loader, dataset = create_dataloader(train_path,
                                               imgsz,
@@ -623,6 +616,7 @@ def training_main(args_ai=None, callbacks=Callbacks()):
     # len_gpu = len(args_ai['general']['CUDA_VISIBLE_DEVICES'].split(','))
     # opt.device = ','.join([str(i) for i in range(len_gpu)])
     opt.device = args_ai['general']['CUDA_VISIBLE_DEVICES']
+    cuda = opt.device != 'cpu'
 
     if RANK in (-1, 0):
         print_args(vars(opt))
@@ -650,6 +644,13 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
 
     # DDP mode
+    if 'CUDA_VISIBLE_DEVICES' in args_ai['general'] and cuda and RANK == -1:
+        gpus = args_ai['general']['CUDA_VISIBLE_DEVICES']
+        gpus = len(gpus.split(','))
+        new_batch_size = opt.batch_size * gpus
+        args_ai['origin']['batch_size'] = new_batch_size
+        opt.batch_size = new_batch_size
+
     device = select_device(opt.device, batch_size=opt.batch_size)
     if LOCAL_RANK != -1:
         msg = 'is not compatible with YOLOv5 Multi-GPU DDP training'
