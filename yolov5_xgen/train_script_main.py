@@ -182,11 +182,11 @@ def train(hyp, opt, args_ai, device, callbacks):  # hyp is path/to/hyp.yaml or h
             g[0].append(v.weight)
 
     if opt.optimizer == 'Adam':
-        optimizer = Adam(g[2], lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
+        optimizer = Adam(g[2], lr=opt.learning_rate, betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
     elif opt.optimizer == 'AdamW':
-        optimizer = AdamW(g[2], lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
+        optimizer = AdamW(g[2], lr=opt.learning_rate, betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
     else:
-        optimizer = SGD(g[2], lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
+        optimizer = SGD(g[2], lr=opt.learning_rate, momentum=hyp['momentum'], nesterov=True)
 
     optimizer.add_param_group({'params': g[0], 'weight_decay': hyp['weight_decay']})  # add g0 with weight_decay
     optimizer.add_param_group({'params': g[1]})  # add g1 (BatchNorm2d weights)
@@ -763,8 +763,8 @@ def training_main(args_ai=None, callbacks=Callbacks()):
         return args_ai
 
 if __name__ == "__main__":
-    # task_json = './yolov5_config/xgen_val.json'
-    # args_ai = json.load(open(task_json,'r'))
+    task_json = './yolov5_config/xgen_val.json'
+    args_ai = json.load(open(task_json,'r'))
 
-    args_ai = None
+    # args_ai = None
     training_main(args_ai=args_ai)
