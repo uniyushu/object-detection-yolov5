@@ -34,7 +34,7 @@
     "train_label_path": null,
     "eval_data_path": "/data/object-detection-yolov5/coco",
     "eval_label_path": null,
-    "learning_rate": 0.001,
+    "learning_rate": 0.01,
     "common_train_epochs": 300,
     "batch_size": 32,
     "root_path": "./Xgen/",
