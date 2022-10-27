@@ -34,4 +34,4 @@ seaborn>=0.11.0
 # Cython  # for pycocotools https://github.com/cocodataset/cocoapi/issues/172
 # pycocotools>=2.0  # COCO mAP
 # roboflow
-thop  # FLOPs computation
+thop==0.0.31.post2005241907  # FLOPs computation
